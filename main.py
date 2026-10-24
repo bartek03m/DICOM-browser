@@ -1,9 +1,9 @@
-import pydicom
 import customtkinter as ctk
 from tkinter import filedialog
 import cv2
 from pathlib import Path
 
+from dicom_io import load_slices, load_file
 
 class App(ctk.CTk):
     def __init__(self):
@@ -11,37 +11,42 @@ class App(ctk.CTk):
 
         # variables
         self.dir_path = ''
+        self.single_file_path = ''
         self.ct_layers = []
 
         # UI
-        self.button = ctk.CTkButton(
+        self.btn_open_dir = ctk.CTkButton(
+            master=self,
+            text="Wybierz folder z dysku",
+            command=self.open_dir
+        )
+        self.btn_open_dir.pack()
+        
+        self.btn_open_file = ctk.CTkButton(
             master=self,
             text="Wybierz plik z dysku",
-            command=self.get_dir
+            command=self.open_file
         )
-        self.button.pack()
-
-        self.button2 = ctk.CTkButton(
-            master=self,
-            text="Wyswietl pliki",
-            command=self.get_layers
-        )
-        self.button2.pack()
+        self.btn_open_file.pack()
+        
+        
 
     # functions
-    def get_dir(self):
-        self.dir_path = Path(filedialog.askdirectory(title="Wybierz folder z badaniem"))
+    def open_dir(self):
+        path = filedialog.askdirectory(title="Wybierz folder z badaniem")
+        if not path:
+            return
+        self.dir_path = Path(path)
+        self.ct_layers = load_slices(self.dir_path)
 
-    def get_layers(self):
-        self.ct_layers = []
-        for file in self.dir_path.iterdir():
-            if file.is_file():
-                try:
-                    ds = pydicom.dcmread(file, stop_before_pixels=True)
-                    self.ct_layers.append(file)
-                    print(f"{file} \n\n")
-                except pydicom.errors.InvalidDicomError:
-                    continue
+    def open_file(self):
+        path = filedialog.askopenfilename(title="Wybierz plik z badaniem")
+        if not path:
+            return
+        self.single_file_path = Path(path)
+        self.ct_layers = load_file(self.single_file_path)
+
+
 
 
 if __name__ == "__main__":

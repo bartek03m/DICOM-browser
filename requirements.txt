@@ -1,3 +1,5 @@
 pydicom
-tkinter
-cv2
+opencv-python
+customtkinter
+numpy
+Pillow
