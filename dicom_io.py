@@ -6,6 +6,10 @@ import pydicom
 from model import Slice
 
 
+def number_of_frames(header: pydicom.Dataset) -> int:
+    return int(header.get("NumberOfFrames") or 1)
+
+
 def sort_slices(slices: list[Slice]) -> None:
     # key: (0 = has InstanceNumber / 1 = missing, InstanceNumber,
     #       file name, frame)
@@ -37,16 +41,15 @@ def load_file(file_path: Path) -> list[Slice]:
     if header.get("Rows") is None or header.get("Columns") is None:
         return []
 
-    n_frames = int(getattr(header, "NumberOfFrames", 1))
     return [
         Slice(path=Path(file_path), header=header, frame=i)
-        for i in range(n_frames)
+        for i in range(number_of_frames(header))
     ]
 
 
 def load_pixels(slice_: Slice) -> np.ndarray:
     ds = pydicom.dcmread(slice_.path)
     pixels = ds.pixel_array
-    if int(getattr(slice_.header, "NumberOfFrames", 1)) > 1:
+    if number_of_frames(slice_.header) > 1:
         return pixels[slice_.frame]
     return pixels
