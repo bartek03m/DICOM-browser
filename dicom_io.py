@@ -1,22 +1,8 @@
-from dataclasses import dataclass
 from pathlib import Path
 import pydicom
 from pydicom.errors import InvalidDicomError
 
-
-@dataclass
-class Slice:
-    path: Path
-    header: pydicom.Dataset
-    frame: int = 0
-
-
-@dataclass
-class Series:
-    uid: str
-    description: str
-    modality: str
-    slices: list[Slice]
+from model import Slice
 
 
 def load_slices(dir_path: Path) -> list[Slice]:
@@ -33,7 +19,6 @@ def load_slices(dir_path: Path) -> list[Slice]:
 
 
 def load_file(file_path: Path) -> list[Slice]:
-    """Read one DICOM file; multi-frame files give one Slice per frame."""
     try:
         header = pydicom.dcmread(file_path, stop_before_pixels=True)
     except InvalidDicomError:
