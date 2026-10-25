@@ -13,13 +13,13 @@ class ImageViewer(ctk.CTkFrame):
         self.canvas.pack(fill="both", expand=True)
         self.photo: ImageTk.PhotoImage | None = None
 
-        # view state
         self.image: np.ndarray | None = None
         self.scale = 1.0     # screen pixels per one image pixel
         self.offset_x = 0.0  # where the image's top-left corner is
         self.offset_y = 0.0  # on the canvas
 
         self.canvas.bind("<Configure>", lambda e: self.redraw())
+        self.canvas.bind("<MouseWheel>", self.on_wheel)
 
     def show(self, image: np.ndarray) -> None:
         self.image = image
@@ -37,6 +37,26 @@ class ImageViewer(ctk.CTkFrame):
         # center the image
         self.offset_x = (canvas_w - image_w * self.scale) / 2
         self.offset_y = (canvas_h - image_h * self.scale) / 2
+        self.redraw()
+
+    def on_wheel(self, event: tk.Event) -> None:
+        if self.image is None:
+            return
+
+        # 1. which point of the image is under the cursor now
+        image_x = (event.x - self.offset_x) / self.scale
+        image_y = (event.y - self.offset_y) / self.scale
+
+        # 2. zoom in (wheel up) or out (wheel down), keep scale in 0.1-64
+        if event.delta > 0:
+            self.scale *= 1.2
+        else:
+            self.scale /= 1.2
+        self.scale = max(0.1, min(self.scale, 64))
+
+        # 3. move the image so that the same point is under the cursor again
+        self.offset_x = event.x - image_x * self.scale
+        self.offset_y = event.y - image_y * self.scale
         self.redraw()
 
     def redraw(self) -> None:
