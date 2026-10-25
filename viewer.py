@@ -18,8 +18,14 @@ class ImageViewer(ctk.CTkFrame):
         self.offset_x = 0.0  # where the image's top-left corner is
         self.offset_y = 0.0  # on the canvas
 
+        # last mouse position while dragging
+        self.drag_x = 0
+        self.drag_y = 0
+
         self.canvas.bind("<Configure>", lambda e: self.redraw())
         self.canvas.bind("<MouseWheel>", self.on_wheel)
+        self.canvas.bind("<ButtonPress-1>", self.on_press)
+        self.canvas.bind("<B1-Motion>", self.on_drag)
 
     def show(self, image: np.ndarray) -> None:
         self.image = image
@@ -37,6 +43,19 @@ class ImageViewer(ctk.CTkFrame):
         # center the image
         self.offset_x = (canvas_w - image_w * self.scale) / 2
         self.offset_y = (canvas_h - image_h * self.scale) / 2
+        self.redraw()
+
+    def on_press(self, event: tk.Event) -> None:
+        # remember where the drag started
+        self.drag_x = event.x
+        self.drag_y = event.y
+
+    def on_drag(self, event: tk.Event) -> None:
+        # move the image by as much as the mouse moved since last time
+        self.offset_x += event.x - self.drag_x
+        self.offset_y += event.y - self.drag_y
+        self.drag_x = event.x
+        self.drag_y = event.y
         self.redraw()
 
     def on_wheel(self, event: tk.Event) -> None:
