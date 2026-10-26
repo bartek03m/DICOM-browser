@@ -1,14 +1,15 @@
-from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import pydicom
+from pydicom import Dataset
+
 
 @dataclass
 class Slice:
     path: Path
-    header: pydicom.Dataset
-    frame: int = 0
+    header: Dataset  # without pixels
+    frame: int = 0  # index in multi-frame file
+
 
 @dataclass
 class MetaRow:
