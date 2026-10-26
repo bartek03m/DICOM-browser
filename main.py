@@ -5,6 +5,7 @@ import customtkinter as ctk
 
 from dicom_io import load_file, load_pixels, load_slices
 from imaging import default_window, to_display, to_modality
+from metadata_panel import MetadataPanel
 from model import Slice
 from viewer import ImageViewer
 
@@ -12,28 +13,39 @@ from viewer import ImageViewer
 class App(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
-        self.geometry("1000x700")
+        self.geometry("1200x700")
+        self.minsize(1000, 500)
+        self.after(0, lambda: self.state("zoomed"))
 
         # variables
         self.ct_slices: list[Slice] = []
         self.index: int = 0
 
         # UI
+        self.toolbar = ctk.CTkFrame(master=self)
+        self.toolbar.pack(side="top", fill="x")
+
+        buttons = ctk.CTkFrame(master=self.toolbar, fg_color="transparent")
+        buttons.pack()
+
         self.btn_open_dir = ctk.CTkButton(
-            master=self,
+            master=buttons,
             text="Wybierz folder z dysku",
             command=self.open_dir
         )
-        self.btn_open_dir.pack()
+        self.btn_open_dir.pack(side="left", padx=5, pady=5)
 
         self.btn_open_file = ctk.CTkButton(
-            master=self,
+            master=buttons,
             text="Wybierz plik z dysku",
             command=self.open_file
         )
-        self.btn_open_file.pack()
-        
-        self.viewer = ImageViewer(self)
+        self.btn_open_file.pack(side="left", padx=5, pady=5)
+
+        self.meta_panel = MetadataPanel(master=self)
+        self.meta_panel.pack(side="right", fill="y")
+
+        self.viewer = ImageViewer(master=self)
         self.viewer.pack(fill="both", expand=True)
 
         # keys
@@ -69,6 +81,7 @@ class App(ctk.CTk):
         try:
             self.index = index
             slice_ = self.ct_slices[index]
+            self.meta_panel.show(slice_.header)
             raw = load_pixels(slice_)
             if slice_.header.get("SamplesPerPixel", 1) > 1:
                 # RGB: shown as is, labels show the raw [R, G, B]
