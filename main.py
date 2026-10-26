@@ -60,9 +60,7 @@ class App(ctk.CTk):
 
     def show_first_slice(self) -> None:
         if not self.ct_slices:
-            messagebox.showwarning(
-                "Brak obrazów", "Nie znaleziono obrazów DICOM."
-            )
+            messagebox.showwarning("Brak obrazów", "Nie znaleziono obrazów DICOM.")
             return
         self.show_slice(0)
         self.viewer.fit()
@@ -73,11 +71,13 @@ class App(ctk.CTk):
             slice_ = self.ct_slices[index]
             raw = load_pixels(slice_)
             if slice_.header.get("SamplesPerPixel", 1) > 1:
-                self.viewer.show(raw)
+                # RGB: shown as is, labels show the raw [R, G, B]
+                self.viewer.show(raw, raw)
                 return
             values = to_modality(raw, slice_.header)
             window = default_window(slice_.header, values)
-            self.viewer.show(to_display(values, slice_.header, window))
+            image = to_display(values, slice_.header, window)
+            self.viewer.show(image, values)
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się wyświetlić obrazu:\n{e}")
 

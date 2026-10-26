@@ -14,9 +14,10 @@ class ImageViewer(ctk.CTkFrame):
         self.photo: ImageTk.PhotoImage | None = None
 
         self.image: np.ndarray | None = None
-        self.scale = 1.0     # screen pixels per one image pixel
-        self.offset_x = 0.0  # where the image's top-left corner is
-        self.offset_y = 0.0  # on the canvas
+        self.values: np.ndarray | None = None
+        self.scale = 1.0
+        self.offset_x = 0.0
+        self.offset_y = 0.0
 
         # last mouse position while dragging
         self.drag_x = 0
@@ -27,8 +28,9 @@ class ImageViewer(ctk.CTkFrame):
         self.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.bind("<B1-Motion>", self.on_drag)
 
-    def show(self, image: np.ndarray) -> None:
+    def show(self, image: np.ndarray, values: np.ndarray) -> None:
         self.image = image
+        self.values = values
         self.redraw()
 
     def fit(self) -> None:
@@ -109,3 +111,44 @@ class ImageViewer(ctk.CTkFrame):
             image=self.photo,
             anchor="nw",
         )
+        self.draw_pixel_values(x0, x1, y0, y1)
+
+    def draw_pixel_values(self, x0: int, x1: int, y0: int, y1: int) -> None:
+        # RGB needs bigger squares, because it shows three numbers
+        is_rgb = self.image.ndim == 3
+        min_scale = 60 if is_rgb else 40
+        if self.values is None or self.scale < min_scale:
+            return
+
+        self.canvas.delete("pixel_values")
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                # center of the pixel's square on the screen
+                cx = self.offset_x + (x + 0.5) * self.scale
+                cy = self.offset_y + (y + 0.5) * self.scale
+
+                # dark text on bright pixels, white text on dark ones
+                brightness = np.mean(self.image[y, x])
+                color = "black" if brightness >= 128 else "white"
+
+                self.canvas.create_text(
+                    cx, cy,
+                    text=pixel_text(self.values[y, x]),
+                    fill=color,
+                    tags="pixel_values",
+                )
+
+
+def pixel_text(value: np.ndarray | float) -> str:
+    # RGB pixel is [R, G, B] -> three lines, grayscale is one number
+    if np.ndim(value) > 0:
+        return "\n".join(number_text(v) for v in value)
+    return number_text(value)
+
+
+def number_text(value: float) -> str:
+    # 128.0 -> "128", 0.123456 -> "0.12"
+    value = float(value)
+    if value.is_integer():
+        return str(int(value))
+    return f"{value:.2f}"
