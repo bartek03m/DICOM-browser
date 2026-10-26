@@ -1,16 +1,16 @@
-# Przeglądarka DICOM
+# DICOM Browser
 
-Prosta przeglądarka obrazów medycznych w formacie DICOM, napisana w Pythonie (pydicom + customtkinter).
+A simple viewer for medical images in the DICOM format, written in Python (pydicom + customtkinter).
 
-- otwiera pojedynczy plik `.dcm` albo cały folder z badaniem (np. CT, jedna warstwa na plik),
-- pozwala powiększać i przesuwać obraz,
-- przy dużym powiększeniu wypisuje na każdym pikselu jego wartość (dla CT w jednostkach Hounsfielda),
-- pozwala przewijać warstwy, zarówno z folderu, jak i z pliku wieloklatkowego,
-- w panelu obok pokazuje wszystkie niepuste metadane z nagłówka.
+- opens a single `.dcm` file or a whole study folder (e.g. CT, one slice per file),
+- lets you zoom and pan the image,
+- at high zoom, prints each pixel's value on the pixel itself (in Hounsfield units for CT),
+- lets you scroll through slices, both from a folder and from a multi-frame file,
+- shows all non-empty header metadata in a side panel.
 
-## Uruchomienie
+## Running
 
-Potrzebny jest **Python 3.10 lub nowszy** (sprawdzone na 3.13). Program był pisany i testowany na Windowsie (patrz [Ograniczenia](#ograniczenia)).
+You need **Python 3.10 or newer** (tested on 3.13). The program was written and tested on Windows (see [Limitations](#limitations)).
 
 ```powershell
 python -m venv .venv
@@ -19,69 +19,73 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### Pliki do testów
+### Test files
 
-Folder `data/` nie jest w repozytorium. Przykładowe pliki DICOM udostępnia pydicom. Ta komenda wypisuje ścieżki do nich (`emri_small.dcm` pobiera się przy pierwszym uruchomieniu, więc potrzebny jest internet):
+The `data/` folder is not in the repository. pydicom ships sample DICOM files. This command prints their paths (`emri_small.dcm` is downloaded on first run, so you need an internet connection):
 
 ```powershell
 python -c "from pydicom.data import get_testdata_file as f; print(f('CT_small.dcm')); print(f('emri_small.dcm')); print(f('MR_small.dcm'))"
 ```
 
-| Plik | Co zawiera |
+| File | Contents |
 | --- | --- |
-| `CT_small.dcm` | CT, wartości w HU, tagi binarne i sekwencja w nagłówku |
-| `emri_small.dcm` | MR, 10 klatek w jednym pliku (przewijanie strzałkami) |
-| `MR_small.dcm` | MR bez części tagów |
+| `CT_small.dcm` | CT, values in HU, binary tags and a sequence in the header |
+| `emri_small.dcm` | MR, 10 frames in one file (scroll with the arrow keys) |
+| `MR_small.dcm` | MR with some tags missing |
 
-## Sterowanie
+## Controls
 
-| Akcja | Jak |
+| Action | How |
 | --- | --- |
-| otwórz plik / folder | przyciski na górze okna |
-| powiększ / pomniejsz | kółko myszy (względem kursora) |
-| przesuń obraz | przeciąganie lewym przyciskiem myszy |
-| dopasuj obraz do okna | `F` |
-| następna / poprzednia warstwa | `↑` / `↓` |
-| o 10 warstw dalej / wstecz | `PgUp` / `PgDn` |
+| open file / folder | `Wybierz plik z dysku` / `Wybierz folder z dysku` buttons at the top of the window |
+| zoom in / out | mouse wheel (around the cursor) |
+| pan the image | drag with the left mouse button |
+| fit image to window | `F` |
+| next / previous slice | `↑` / `↓` |
+| 10 slices forward / back | `PgUp` / `PgDn` |
 
-Wartości pikseli pojawiają się, gdy jeden piksel obrazu zajmuje na ekranie co najmniej 40 px (60 px dla obrazów kolorowych, bo wypisywane są trzy liczby R, G, B).
+Pixel values appear when one image pixel takes up at least 40 px on screen (60 px for color images, because three numbers R, G, B are printed).
 
-## Jak to działa
+## How it works
 
-**Wczytywanie** ([dicom_io.py](dicom_io.py))
-- Z każdego pliku czytany jest najpierw sam nagłówek, bez pikseli. Pliki, które nie są DICOM-em albo nie zawierają obrazu, są pomijane.
-- Każda klatka to osobny `Slice`. Plik wieloklatkowy i folder z wieloma plikami obsługuje więc ten sam kod.
-- Warstwy są sortowane po `InstanceNumber`, a pliki bez tego tagu trafiają na koniec, posortowane po nazwie.
-- Piksele są wczytywane dopiero przy wyświetlaniu danej warstwy.
+**Loading** ([dicom_io.py](dicom_io.py))
+- Only the header is read from each file first, without the pixels. Files that are not DICOM or contain no image are skipped.
+- Each frame is a separate `Slice`, so a multi-frame file and a folder of many files are handled by the same code.
+- Slices are sorted by `InstanceNumber`; files without this tag go to the end, sorted by name.
+- Pixels are loaded only when a given slice is displayed.
 
-**Od pikseli do obrazu** ([imaging.py](imaging.py))
-1. **Modality LUT:** surowe liczby z pliku są przeliczane na wartości fizyczne (`RescaleSlope`, `RescaleIntercept`). Dla CT są to jednostki Hounsfielda. Te wartości trafiają na napisy na pikselach.
-2. **Okno (window center / width):** wybrany zakres wartości jest rozciągany na skalę szarości 0–255. Okno jest brane z nagłówka. Jeśli go tam nie ma, dla CT używane jest okno tkanek miękkich (40 / 400), a dla innych badań pełny zakres wartości obrazu.
-3. **MONOCHROME1:** w tym zapisie 0 oznacza biel, więc obraz jest odwracany.
-4. Obrazy kolorowe (RGB) są wyświetlane bez zmian.
+**From pixels to image** ([imaging.py](imaging.py))
+1. **Modality LUT:** raw numbers from the file are converted to physical values (`RescaleSlope`, `RescaleIntercept`). For CT these are Hounsfield units. These are the values printed on the pixels.
+2. **Window (window center / width):** the chosen value range is stretched to the 0–255 grayscale. The window is taken from the header. If it is missing, CT uses a soft tissue window (40 / 400) and other modalities use the full value range of the image.
+3. **MONOCHROME1:** in this encoding 0 means white, so the image is inverted.
+4. Color (RGB) images are displayed unchanged.
 
-**Wyświetlanie** ([viewer.py](viewer.py))
-- Przy powiększaniu skalowany jest tylko widoczny fragment obrazu. Dzięki temu duży zoom jest szybki i nie zużywa dużo pamięci.
+**Display** ([viewer.py](viewer.py))
+- When zooming, only the visible part of the image is scaled. This keeps high zoom fast and memory-light.
 
-**Metadane** ([metadata.py](metadata.py))
-- Pokazywane są wszystkie niepuste tagi oprócz samych pikseli.
-- Sekwencje i dane binarne są pokazywane jako rozmiar, np. `<dane binarne, bajtów: 128>`, zamiast ściany znaków.
+**Metadata** ([metadata.py](metadata.py))
+- All non-empty tags except the pixel data are shown.
+- Sequences and binary data are shown as their size, e.g. `<dane binarne, bajtów: 128>` ("binary data, bytes: 128"), instead of a wall of characters.
 
-## Struktura
+## Structure
 
 ```
-main.py            okno aplikacji: przyciski, klawisze, przełączanie warstw
-viewer.py          ImageViewer: płótno, zoom, przesuwanie, wartości pikseli
-metadata_panel.py  MetadataPanel: tabela z metadanymi
-dicom_io.py        wczytywanie pliku i folderu, sortowanie warstw, piksele
-imaging.py         Modality LUT, okno, konwersja do 8 bitów
-metadata.py        lista niepustych tagów z nagłówka
-model.py           dataclassy Slice i MetaRow
+main.py            application window: buttons, keys, slice switching
+viewer.py          ImageViewer: canvas, zoom, panning, pixel values
+metadata_panel.py  MetadataPanel: metadata table
+dicom_io.py        loading a file and a folder, sorting slices, pixels
+imaging.py         Modality LUT, windowing, conversion to 8 bits
+metadata.py        list of non-empty header tags
+model.py           Slice and MetaRow dataclasses
 ```
 
-Moduły `dicom_io.py`, `imaging.py`, `metadata.py` i `model.py` nie zależą od GUI, więc można ich używać i testować bez otwierania okna.
+The `dicom_io.py`, `imaging.py`, `metadata.py` and `model.py` modules do not depend on the GUI, so they can be used and tested without opening a window.
 
-## Ograniczenia
+## Limitations
 
-- **Jedna seria na folder.** Wszystkie pliki z folderu trafiają do jednej listy, a podfoldery są pomijane. Folder z kilkoma seriami pokaże je przemieszane.
-- **Brak grupy 0002 w metadanych.** Nagłówek pliku (`file_meta`, np. `Transfer Syntax UID`) nie jest pokazywany w tabeli.
+- **One series per folder.** All files in a folder go into one list, and subfolders are skipped. A folder with several series will show them mixed together.
+- **No group 0002 in metadata.** The file meta header (`file_meta`, e.g. `Transfer Syntax UID`) is not shown in the table.
+
+## License
+
+[MIT](LICENSE)
