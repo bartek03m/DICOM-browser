@@ -1,5 +1,4 @@
-pydicom
-opencv-python
-customtkinter
+pydicom>=3.0
+customtkinter>=5.2
 numpy
-Pillow
+Pillow>=9.1
